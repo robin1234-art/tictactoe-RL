@@ -15,7 +15,9 @@ The Q-table is keyed on two normalizations of the board:
 """
 from __future__ import annotations
 
+import pickle
 import random
+from pathlib import Path
 
 from tictactoe.agents.base import Agent
 from tictactoe.game import Board, State, canonical_transform
@@ -82,3 +84,15 @@ class QLearningAgent(Agent):
             target = reward + self.gamma * best_next
 
         self.q[key] = current + self.alpha * (target - current)
+
+    def save(self, path: str | Path) -> None:
+        """Persist the Q-table (a plain dict of tuples/ints/floats) to `path`."""
+        with open(path, "wb") as f:
+            pickle.dump(self.q, f)
+
+    @classmethod
+    def load(cls, path: str | Path, **kwargs) -> "QLearningAgent":
+        agent = cls(**kwargs)
+        with open(path, "rb") as f:
+            agent.q = pickle.load(f)
+        return agent
