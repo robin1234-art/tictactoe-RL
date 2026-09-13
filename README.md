@@ -22,7 +22,10 @@ src/tictactoe/
 ├── training.py            # self-play / vs-fixed-opponent training loop
 └── evaluation.py          # head-to-head win/draw/loss evaluation
 tests/                     # pytest suite (game rules, minimax optimality, RL convergence)
-notebooks/                 # game-theory analysis, training curves, agent comparison
+notebooks/
+└── 02_training_curricula.ipynb  # self-play vs. fixed-opponent (Random/Minimax) training, compared
+app/app.py                 # Streamlit demo: play against any trained agent
+scripts/train_agent.py     # trains and saves the self-play Q-learning agent used by the app
 ```
 
 ## Key ideas
@@ -40,19 +43,38 @@ notebooks/                 # game-theory analysis, training curves, agent compar
 - **Minimax as ground truth** — used both as an oracle (exact game value of
   any position) and as an opponent to evaluate the RL agent against.
 
+## Does the training opponent matter?
+
+[`notebooks/02_training_curricula.ipynb`](notebooks/02_training_curricula.ipynb)
+trains two Q-learning agents with identical hyperparameters and episode
+budgets — one against a random opponent, one against minimax — and
+benchmarks both against the minimax oracle and against random play. The
+short version: each fixed opponent teaches an incomplete policy (the
+Random-trained agent is exploitable by minimax's forks; the
+Minimax-trained agent is exploitable by random's off-distribution play),
+while self-play avoids both blind spots from the same episode budget.
+
 ## Getting started
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,app]"
 pytest
+```
+
+Play against the trained agents:
+
+```bash
+python scripts/train_agent.py   # trains and saves the self-play agent (once)
+streamlit run app/app.py
 ```
 
 ## Roadmap
 
 - [x] Core game logic + minimax oracle + tabular Q-learning agent, with tests
-- [ ] Notebooks: game-theory analysis, training curves, agent comparison
+- [x] Streamlit demo to play against the trained agents
+- [x] Notebook: training curricula (self-play vs. fixed-opponent) compared
+- [ ] Notebook: game-theory analysis of the state space
 - [ ] DQN agent (Stable-Baselines3) as a function-approximation comparison
-- [ ] Streamlit demo to play against the trained agent
 - [ ] CI (GitHub Actions: tests + lint)
 - [ ] Containerized deployment (Docker) to a personal server

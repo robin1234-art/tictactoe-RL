@@ -17,23 +17,51 @@ def train(
     episodes: int,
     opponent: Agent | None = None,
     agent_player: int = X,
+    alternate_sides: bool = True,
     alpha: float = 0.1,
     gamma: float = 0.95,
     epsilon_start: float = 0.3,
     epsilon_end: float = 0.05,  # kept > 0: decaying fully to 0 starves rarer branches (e.g. playing second) of updates
+    epsilon: float | None = None,
+    agent: QLearningAgent | None = None,
 ) -> QLearningAgent:
     """Train a QLearningAgent.
 
     If `opponent` is None, the agent trains via self-play, controlling both
-    sides through the same (perspective-normalized) Q-table. Otherwise the
-    agent always plays `agent_player` against the fixed `opponent` policy.
+    sides through the same (perspective-normalized) Q-table.
+
+    Otherwise the agent plays against the fixed `opponent` policy. With
+    `alternate_sides=True` (the default) it plays X on even episodes and O on
+    odd ones, so it learns a complete two-sided policy against that opponent
+    rather than only ever moving first (or only ever moving second) — the two
+    seats see very different state distributions. Set `alternate_sides=False`
+    to pin the agent to `agent_player` for every episode instead.
+
+    Pass `epsilon` for a constant exploration rate (e.g. when resuming
+    training in checkpoints and annealing epsilon across the outer loop
+    yourself); otherwise it linearly decays from `epsilon_start` to
+    `epsilon_end` over this call's `episodes`.
+
+    Pass an existing `agent` to continue training it instead of starting a
+    fresh Q-table (`alpha`/`gamma` are then ignored — the agent's own values
+    apply).
     """
-    agent = QLearningAgent(alpha=alpha, gamma=gamma)
-    sides = (X, O) if opponent is None else (agent_player,)
+    if agent is None:
+        agent = QLearningAgent(alpha=alpha, gamma=gamma)
 
     for ep in range(episodes):
-        progress = ep / max(episodes - 1, 1)
-        epsilon = epsilon_start + (epsilon_end - epsilon_start) * progress
+        if epsilon is not None:
+            eps = epsilon
+        else:
+            progress = ep / max(episodes - 1, 1)
+            eps = epsilon_start + (epsilon_end - epsilon_start) * progress
+
+        if opponent is None:
+            sides = (X, O)
+        elif alternate_sides:
+            sides = (agent_player if ep % 2 == 0 else -agent_player,)
+        else:
+            sides = (agent_player,)
 
         board = Board()
         player = X
@@ -42,7 +70,7 @@ def train(
         while True:
             if player in trace:
                 state_board = board
-                action = agent.act(board, player, epsilon=epsilon)
+                action = agent.act(board, player, epsilon=eps)
                 board = board.play(action, player)
                 trace[player].append((state_board, action))
             else:
